@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import io from 'socket.io-client';
 
 const socket = io.connect('http://localhost:3000');
 
 function App() {
-  // TODO need to figure data structure of msgHistory
   const [msgHistory, setMsgHistory] = useState([
     { name: 'me1', msg: 'who' },
     { name: 'me2', msg: 'who2' },
@@ -15,17 +14,32 @@ function App() {
     msg: '',
   });
 
+  const nameRef = useRef();
+  const msgRef = useRef();
+
   const sendMessage = (e) => {
     console.log(`client ${userMsg.name}: ${userMsg.msg}`);
-    // socket.emit('send_message', { user: userMsg.user, message: userMsg });
+    socket.emit('send_message', { user: userMsg.user, message: userMsg });
+    setMsgHistory((prevMsgHistory) => [...prevMsgHistory, userMsg]);
+    clearInputs();
+  };
+
+  const clearInputs = () => {
+    msgRef.current.value = '';
   };
 
   // refresh whenever socket event happens
   useEffect(() => {
-    socket.on('receive_message', (data) => {
-      console.log('from server', data.message);
-      setMsgHistory([...msgHistory, data.message]);
-    });
+    const handleReceiveMessage = (data) => {
+      setMsgHistory((prevMsgHistory) => [...prevMsgHistory, data.message]);
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+
+    return () => {
+      //unsubscribe when component unmounts - when message received - prevents duplicate messages
+      socket.off('receive_message', handleReceiveMessage);
+    };
   }, [socket]);
 
   return (
@@ -34,6 +48,7 @@ function App() {
       <input
         type="text"
         placeholder="username here.."
+        ref={nameRef}
         onChange={(e) => {
           setUserMsg({ ...userMsg, name: e.target.value });
         }}
@@ -41,6 +56,7 @@ function App() {
       <input
         type="text"
         placeholder="Message here..."
+        ref={msgRef}
         onChange={(e) => {
           setUserMsg({ ...userMsg, msg: e.target.value });
         }}
@@ -56,7 +72,7 @@ function App() {
       <h2>Messages below:</h2>
       <div>
         {msgHistory.map((user, index) => (
-          <div key={user.user + index}>{`${user.name}: ${user.msg}`}</div>
+          <div key={user.name + index}>{`${user.name}: ${user.msg}`}</div>
         ))}
       </div>
     </>
