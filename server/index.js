@@ -21,8 +21,21 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`User Connected ${socket.id}`);
 
-  socket.on('send_message', (data) => {
+  socket.on('join_room', (data) => {
+    socket.join(data.room);
+    console.log(`user:${data.name} joined room ${data.room}`);
+  });
+
+  // broadcast all active connections
+  socket.on('send_message_all', (data) => {
     socket.broadcast.emit('receive_message', data);
+    console.log(`user:${data.name} room:${data.room} BROADCAST: ${data.msg}`);
+  });
+
+  //message to room only
+  socket.on('send_rm_message', (data) => {
+    socket.to(data.room).emit('receive_message', data);
+    console.log(`user:${data.name} room:${data.room} LOBBY CHAT: ${data.msg}`);
   });
 });
 
